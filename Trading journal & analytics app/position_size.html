@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Risk & Position Size Suite</title>
+
+<style>
+:root{
+  --bg:#0e1117;
+  --card:#161b22;
+  --text:#e6edf3;
+  --muted:#8b949e;
+  --accent:#2f81f7;
+  --danger:#f85149;
+  --success:#3fb950;
+}
+
+@media (prefers-color-scheme: light){
+  :root{
+    --bg:#f5f7fb;
+    --card:#ffffff;
+    --text:#0d1117;
+    --muted:#57606a;
+  }
+}
+
+*{box-sizing:border-box;font-family:Inter,system-ui,sans-serif}
+
+body{
+  margin:0;
+  background:var(--bg);
+  color:var(--text);
+}
+
+header{
+  padding:1.2rem;
+  text-align:center;
+  font-size:1.4rem;
+  font-weight:600;
+  background:linear-gradient(90deg,var(--accent),#58a6ff);
+  color:#fff;
+}
+
+.container{
+  max-width:1200px;
+  margin:auto;
+  padding:1rem;
+  display:grid;
+  gap:1rem;
+}
+
+.card{
+  background:var(--card);
+  border-radius:12px;
+  padding:1rem;
+  box-shadow:0 10px 25px rgba(0,0,0,.15);
+}
+
+h2{
+  margin:.2rem 0 1rem;
+  font-size:1.1rem;
+}
+
+.grid{
+  display:grid;
+  gap:.8rem;
+  grid-template-columns:repeat(auto-fit,minmax(200px,1fr));
+}
+
+label{
+  font-size:.8rem;
+  color:var(--muted);
+}
+
+input{
+  width:100%;
+  padding:.55rem;
+  border-radius:8px;
+  border:1px solid #30363d;
+  background:transparent;
+  color:var(--text);
+}
+
+button{
+  margin-top:1rem;
+  padding:.6rem 1rem;
+  border:none;
+  border-radius:8px;
+  background:var(--accent);
+  color:#fff;
+  font-weight:600;
+  cursor:pointer;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  margin-top:.8rem;
+}
+
+th,td{
+  text-align:left;
+  padding:.4rem 0;
+}
+
+canvas{
+  width:100%;
+  height:260px;
+  margin-top:.6rem;
+}
+</style>
+</head>
+
+<body>
+
+<header>Trading Risk & Position Size Calculator</header>
+
+<div class="container">
+
+<!-- FIXED RISK -->
+<div class="card">
+<h2>Position Size – Fixed Risk %</h2>
+
+<div class="grid">
+  <div>
+    <label>Account Balance</label>
+    <input type="number" id="bal" value="10000" min="1">
+  </div>
+  <div>
+    <label>Risk % of Account</label>
+    <input type="number" id="riskPct" value="3" min="1" max="20">
+  </div>
+</div>
+
+<button onclick="calculateRisk()">Calculate Position Size</button>
+
+<table id="riskTable" style="display:none">
+  <tr>
+    <th>Risk %</th>
+    <th>Amount Risked</th>
+    <th>Assessment</th>
+  </tr>
+  <tr>
+    <td id="rPct"></td>
+    <td id="rAmt"></td>
+    <td id="rAssess"></td>
+  </tr>
+</table>
+
+<canvas id="riskScatter"></canvas>
+<canvas id="riskPie"></canvas>
+</div>
+
+<!-- KELLY -->
+<div class="card">
+<h2>Position Size – Kelly Criterion</h2>
+<div class="grid">
+  <div><label>Win Probability</label><input type="number" step="0.01" id="kp" value="0.55"></div>
+  <div><label>Average Win</label><input type="number" id="kw" value="200"></div>
+  <div><label>Average Loss</label><input type="number" id="kl" value="100"></div>
+  <div><label>Account Balance</label><input type="number" id="kbal" value="10000"></div>
+  <button onclick="kelly()">Calculate</button>
+</div>
+<div id="kellyOut"></div>
+<canvas id="kellyChart"></canvas>
+</div>
+
+
+<script>
+function calculateRisk(){
+  const bal = +document.getElementById("bal").value;
+  const pct = +document.getElementById("riskPct").value;
+
+  if(bal<=0||pct<=0) return;
+
+  const amt = bal * (pct/100);
+  const healthy = pct<=7;
+
+  document.getElementById("riskTable").style.display="table";
+  document.getElementById("rPct").textContent = pct+"%";
+  document.getElementById("rAmt").textContent = amt.toFixed(2);
+
+  document.getElementById("rAssess").innerHTML = healthy
+    ? `<span style="color:var(--success)">Healthy</span>`
+    : `<span style="color:var(--danger);font-weight:600">⚠ Unhealthy</span>`;
+
+  drawScatter(pct,amt,bal);
+  drawPie(amt,bal);
+}
+
+function drawScatter(pct,amt,bal){
+  const c=document.getElementById("riskScatter"),ctx=c.getContext("2d");
+  ctx.clearRect(0,0,c.width,c.height);
+
+  ctx.strokeStyle="#666";
+  ctx.beginPath();
+  ctx.moveTo(40,10);ctx.lineTo(40,230);ctx.lineTo(310,230);ctx.stroke();
+
+  const x=40+(pct/20)*250;
+  const y=230-(amt/(bal*0.2))*200;
+
+  ctx.fillStyle=pct>7?"#f85149":"#2f81f7";
+  ctx.beginPath();ctx.arc(x,y,6,0,Math.PI*2);ctx.fill();
+}
+
+function drawPie(risk,bal){
+  const c=document.getElementById("riskPie"),ctx=c.getContext("2d");
+  ctx.clearRect(0,0,c.width,c.height);
+
+  const cx=150,cy=130,r=90;
+  const a=(risk/bal)*Math.PI*2;
+
+  ctx.fillStyle="#f85149";
+  ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,0,a);ctx.fill();
+
+  ctx.fillStyle="#3fb950";
+  ctx.beginPath();ctx.moveTo(cx,cy);ctx.arc(cx,cy,r,a,Math.PI*2);ctx.fill();
+}
+</script>
+
+</body>
+</html>

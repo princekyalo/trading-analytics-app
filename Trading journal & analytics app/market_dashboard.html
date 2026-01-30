@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Global Markets</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#070b16;
+  --card:#0f172a;
+  --border:rgba(255,255,255,.08);
+  --green:#16c784;
+  --red:#ea3943;
+  --blue:#4f46e5;
+  --text:#e5e7eb;
+}
+body{
+  margin:0;
+  font-family:Inter,sans-serif;
+  background:radial-gradient(circle at top,#10162a,#05070f);
+  color:var(--text);
+}
+header{
+  backdrop-filter:blur(12px);
+  background:rgba(5,7,15,.85);
+  border-bottom:1px solid var(--border);
+}
+.nav{
+  max-width:1400px;
+  margin:auto;
+  padding:1rem 1.5rem;
+  display:flex;
+  justify-content:space-between;
+}
+.logo{font-weight:700;color:var(--blue)}
+nav a{
+  color:#fff;
+  text-decoration:none;
+  padding:.5rem 1rem;
+  border-radius:8px;
+}
+nav a:hover{background:rgba(255,255,255,.06)}
+
+.container{
+  max-width:1400px;
+  margin:2rem auto;
+  padding:0 1.5rem;
+}
+.card{
+  background:rgba(255,255,255,.04);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:1.5rem;
+  margin-bottom:2rem;
+}
+table{
+  width:100%;
+  border-collapse:collapse;
+}
+th,td{
+  padding:.7rem;
+  border-bottom:1px solid var(--border);
+}
+.up{color:var(--green)}
+.down{color:var(--red)}
+.loading{opacity:0.5;font-style:italic}
+.error{color:var(--red);font-size:0.9rem}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="nav">
+    <div class="logo">Market Dashboard</div>
+    <nav>
+      <a href="crypto.html">Crypto</a>
+      <a href="stocks.html">Stocks</a>
+      <a href="help.html">Help</a>
+    </nav>
+  </div>
+</header>
+
+<div class="container">
+
+<div class="card">
+<h2>Market Indices</h2>
+<table id="indices">
+<tr><th>Index</th><th>Price</th><th>Change</th></tr>
+<tr><td colspan="3" class="loading">Loading...</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>Cryptocurrencies</h2>
+<table id="crypto">
+<tr><th>Symbol</th><th>Price</th><th>24h Change</th></tr>
+<tr><td colspan="3" class="loading">Loading...</td></tr>
+</table>
+</div>
+
+<div class="card">
+<h2>Foreign Exchange</h2>
+<table id="fx">
+<tr><th>Pair</th><th>Rate</th></tr>
+<tr><td colspan="2" class="loading">Loading...</td></tr>
+</table>
+</div>
+
+</div>
+
+<script>
+/* ===========================
+   MARKET INDICES (FMP DEMO)
+=========================== */
+/* ===========================
+   MARKET INDICES (YAHOO FINANCE)
+=========================== */
+async function loadIndices() {
+  const table = document.getElementById("indices");
+
+  try {
+    const symbols = [
+      "^GSPC",   // S&P 500
+      "^DJI",    // Dow Jones
+      "^IXIC",   // Nasdaq
+      "^FTSE",   // FTSE 100
+      "^N225",   // Nikkei 225
+      "000001.SS" // Shanghai Composite
+    ];
+
+    const url =
+      "https://query1.finance.yahoo.com/v7/finance/quote?symbols=" +
+      symbols.join(",");
+
+    const res = await fetch(url);
+    const json = await res.json();
+    const data = json.quoteResponse.result;
+
+    const names = {
+      "^GSPC": "S&P 500",
+      "^DJI": "Dow Jones",
+      "^IXIC": "Nasdaq",
+      "^FTSE": "FTSE 100",
+      "^N225": "Nikkei 225",
+      "000001.SS": "Shanghai Composite"
+    };
+
+    let html = `
+      <tr>
+        <th>Index</th>
+        <th>Price</th>
+        <th>Change</th>
+      </tr>
+    `;
+
+    data.forEach(i => {
+      const change = i.regularMarketChange || 0;
+      const price = i.regularMarketPrice || 0;
+
+      html += `
+        <tr>
+          <td>${names[i.symbol] || i.symbol}</td>
+          <td>${price.toFixed(2)}</td>
+          <td class="${change >= 0 ? "up" : "down"}">
+            ${change >= 0 ? "+" : ""}${change.toFixed(2)}
+          </td>
+        </tr>
+      `;
+    });
+
+    table.innerHTML = html;
+
+  } catch (err) {
+    table.innerHTML =
+      '<tr><td colspan="3" class="error">Failed to load market indices</td></tr>';
+    console.error("Yahoo Finance error:", err);
+  }
+}
+
+/* ===========================
+   CRYPTOCURRENCIES
+=========================== */
+async function loadCrypto(){
+  const table=document.getElementById("crypto");
+  try{
+    const res=await fetch("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin,ethereum,ripple,cardano,solana&vs_currencies=usd&include_24hr_change=true");
+    const data=await res.json();
+
+    const names={
+      bitcoin:"BTC",
+      ethereum:"ETH",
+      ripple:"XRP",
+      cardano:"ADA",
+      solana:"SOL"
+    };
+
+    let html='<tr><th>Symbol</th><th>Price</th><th>24h Change</th></tr>';
+    
+    for(const [id,name] of Object.entries(names)){
+      const d=data[id];
+      const change=d.usd_24h_change||0;
+      html+=`
+        <tr>
+          <td>${name}</td>
+          <td>$${d.usd.toLocaleString()}</td>
+          <td class="${change>=0?'up':'down'}">${change>=0?'+':''}${change.toFixed(2)}%</td>
+        </tr>`;
+    }
+    
+    table.innerHTML=html;
+  }catch(e){
+    table.innerHTML='<tr><td colspan="3" class="error">Failed to load crypto data</td></tr>';
+    console.error(e);
+  }
+}
+
+/* ===========================
+   FX RATES (via Frankfurter)
+=========================== */
+async function loadFX(){
+  const table=document.getElementById("fx");
+  try{
+    const res=await fetch("https://api.frankfurter.app/latest?from=USD");
+    const data=await res.json();
+
+    const pairs={
+      EUR:"EUR/USD",
+      GBP:"GBP/USD",
+      JPY:"USD/JPY",
+      CHF:"USD/CHF",
+      AUD:"AUD/USD",
+      CAD:"USD/CAD"
+    };
+
+    let html='<tr><th>Pair</th><th>Rate</th></tr>';
+    
+    for(const [curr,label] of Object.entries(pairs)){
+      const rate=data.rates[curr];
+      const displayRate=label.startsWith("USD")?rate:(1/rate);
+      html+=`
+        <tr>
+          <td>${label}</td>
+          <td>${displayRate.toFixed(4)}</td>
+        </tr>`;
+    }
+    
+    table.innerHTML=html;
+  }catch(e){
+    table.innerHTML='<tr><td colspan="2" class="error">Failed to load FX data</td></tr>';
+    console.error(e);
+  }
+}
+
+// Load all data
+loadIndices();
+loadCrypto();
+loadFX();
+</script>
+
+</body>
+</html>

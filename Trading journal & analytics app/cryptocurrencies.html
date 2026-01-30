@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Top 50 Cryptocurrencies</title>
+  <!-- Google Fonts -->
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #f8f9fa;
+      --card: #ffffff;
+      --primary: #4f46e5;
+      --success: #10b981;
+      --danger: #ef4444;
+      --text: #1f2937;
+      --border: #e5e7eb;
+    }
+    [data-theme="dark"] {
+      --bg: #0f172a;
+      --card: #1e293b;
+      --primary: #6366f1;
+      --success: #34d399;
+      --danger: #f87171;
+      --text: #f1f5f9;
+      --border: #334155;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Inter, sans-serif;
+    }
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.5rem;
+      background: var(--card);
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 {
+      font-family: Poppins, sans-serif;
+      font-size: 1.4rem;
+      margin: 0;
+    }
+    header button {
+      background: var(--primary);
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      padding: 0.5rem 0.9rem;
+      cursor: pointer;
+      transition: transform .15s ease, opacity .15s ease;
+    }
+    header button:hover { transform: translateY(-1px); }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.85rem;
+      margin-top: 1rem;
+    }
+    th, td {
+      border-bottom: 1px solid var(--border);
+      padding: 0.5rem;
+      text-align: left;
+      white-space: nowrap;
+    }
+    th {
+      background: var(--card);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+    .positive { color: var(--success); }
+    .negative { color: var(--danger); }
+    .container {
+      padding: 1.5rem;
+    }
+    .refresh-btn {
+      background: var(--success);
+      margin-left: 0.5rem;
+    }
+    @media (max-width: 768px) {
+      table { font-size: 0.75rem; }
+    }
+    
+    .title {
+  display: flex;
+  flex-direction: column;
+  align-items: center; /* optional, for centering */
+}
+
+{
+  </style>
+</head>
+<body data-theme="light">
+    
+    
+  <header style="display:flex;justify-content:space-between;align-items:center;padding:1rem 2rem;background:var(--card);border-bottom:1px solid var(--border);box-shadow:0 4px 12px rgba(0,0,0,0.05);">
+ <div class="title" style="font-family:Poppins,sans-serif;font-size:1.6rem;color:var(--primary);font-weight:600; align-items: center; text-align:center;">Cryptocurrencies</div>
+  
+  <div style="display:flex;gap:0.5rem;align-items:center;">
+    <!-- Home button -->
+    <a href="index.html" style="text-decoration:none;padding:0.45rem 0.9rem;border-radius:8px;background:var(--primary);color:#fff;font-weight:500;transition:transform 0.15s ease,opacity 0.15s ease;">Home</a>
+    <!-- Help button -->
+    <a href="help.html" style="text-decoration:none;padding:0.45rem 0.9rem;border-radius:8px;background:var(--primary);color:#fff;font-weight:500;transition:transform 0.15s ease,opacity 0.15s ease;">Help</a>
+    <!-- Theme toggle button -->
+    <button onclick="toggleTheme()" style="background:var(--primary);color:#fff;border:none;border-radius:8px;padding:0.45rem 0.9rem;cursor:pointer;font-weight:500;transition:transform 0.15s ease,opacity 0.15s ease;">Theme</button>
+    <!-- Refresh button -->
+    <button onclick="loadData()" style="background:var(--success);color:#fff;border:none;border-radius:8px;padding:0.45rem 0.9rem;cursor:pointer;font-weight:500;transition:transform 0.15s ease,opacity 0.15s ease;">Refresh</button>
+  </div>
+</header>
+  
+  <div class="container">
+    <div style="overflow-x:auto;">
+      <table id="cryptoTable">
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Name</th>
+            <th>Symbol</th>
+            <th>Price (USD)</th>
+            <th>Market Cap</th>
+            <th>24h Change (%)</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script>
+    function toggleTheme() {
+      document.body.dataset.theme = document.body.dataset.theme === 'dark' ? 'light' : 'dark';
+    }
+
+    function formatNumber(num) {
+      return num.toLocaleString('en-US', { maximumFractionDigits: 2 });
+    }
+
+    async function loadData() {
+      const tbody = document.querySelector('#cryptoTable tbody');
+      tbody.innerHTML = '<tr><td colspan="6">Loading...</td></tr>';
+      try {
+        const res = await fetch('https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=50&page=1&sparkline=false');
+        const data = await res.json();
+        tbody.innerHTML = '';
+        data.forEach(coin => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${coin.market_cap_rank}</td>
+            <td>${coin.name}</td>
+            <td>${coin.symbol.toUpperCase()}</td>
+            <td>$${formatNumber(coin.current_price)}</td>
+            <td>$${formatNumber(coin.market_cap)}</td>
+            <td class="${coin.price_change_percentage_24h >= 0 ? 'positive' : 'negative'}">
+              ${coin.price_change_percentage_24h ? coin.price_change_percentage_24h.toFixed(2) : '0.00'}%
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        tbody.innerHTML = '<tr><td colspan="6">Error loading data</td></tr>';
+        console.error(err);
+      }
+    }
+
+    loadData();
+  </script>
+</body>
+</html>

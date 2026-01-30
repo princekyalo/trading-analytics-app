@@ -1,0 +1,300 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Institutional Trading Position & Risk Calculator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+:root {
+  --bg: #05070c;
+  --panel: #0c1020;
+  --border: #1e293b;
+  --text: #e5e7eb;
+  --muted: #94a3b8;
+  --green: #22c55e;
+  --red: #ef4444;
+  --yellow: #eab308;
+  --cyan: #38bdf8;
+}
+
+* {
+  box-sizing: border-box;
+  font-family: Consolas, monospace;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+}
+
+header {
+  padding: 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 16px;
+  font-weight: bold;
+}
+
+.container {
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 14px;
+  padding: 14px;
+}
+
+@media (max-width: 900px) {
+  .container { grid-template-columns: 1fr; }
+}
+
+.panel {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.panel h3 {
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+label {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+input, select, button {
+  width: 100%;
+  padding: 6px;
+  margin: 4px 0 10px 0;
+  background: #020617;
+  border: 1px solid var(--border);
+  color: var(--text);
+  border-radius: 4px;
+}
+
+button {
+  cursor: pointer;
+  background: var(--cyan);
+  color: #000;
+  font-weight: bold;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+
+th, td {
+  border: 1px solid var(--border);
+  padding: 6px;
+  text-align: center;
+}
+
+th {
+  background: #020617;
+  color: var(--muted);
+}
+
+.green { color: var(--green); }
+.red { color: var(--red); }
+.yellow { color: var(--yellow); }
+
+.warning {
+  color: var(--red);
+  font-weight: bold;
+  margin-top: 6px;
+}
+</style>
+</head>
+
+<body>
+
+<header>Institutional Trading Position & Risk Management Terminal</header>
+
+<div class="container">
+
+<!-- INPUTS -->
+<div class="panel">
+<h3>Trade Inputs</h3>
+
+<label>Account Size</label>
+<input id="account" type="number" value="10000">
+
+<label>Maximum Risk per Trade (%)</label>
+<input id="riskPct" type="number" value="1">
+
+<label>Maximum Drawdown (%)</label>
+<input id="maxDD" type="number" value="10">
+
+<label>Entry Price</label>
+<input id="entry" type="number" value="100">
+
+<label>Risk to Reward Ratio</label>
+<input id="rr" type="number" value="3">
+
+<label>Trade Direction</label>
+<select id="direction">
+  <option value="long">Long</option>
+  <option value="short">Short</option>
+</select>
+
+<label>Leverage</label>
+<input id="leverage" type="number" value="50">
+
+<label>Contract Size</label>
+<input id="contract" type="number" value="1">
+
+<label>Expected Win Rate (%) (Kelly)</label>
+<input id="winrate" type="number" value="50">
+
+<button onclick="calculate()">Calculate</button>
+</div>
+
+<!-- RESULTS -->
+<div class="panel">
+<h3>Trade & Risk Output</h3>
+
+<table id="results"></table>
+
+<div class="warning" id="ddWarning"></div>
+
+<canvas id="tradeChart" height="200"></canvas>
+</div>
+
+</div>
+
+<div class="panel" style="margin:14px">
+<h3>Risk / Reward vs Leverage Matrix</h3>
+<table id="matrix"></table>
+</div>
+
+<script>
+const leverages = [5,10,50,100,150,200,500,1000,2000,5000];
+const rrs = [1,2,3,5,10];
+
+function safe(n){ return isFinite(n) ? n : 0; }
+
+let chart;
+
+function calculate(){
+  const account = safe(+accountInput.value);
+  const riskPct = safe(+riskPctInput.value)/100;
+  const maxDD = safe(+maxDDInput.value)/100;
+  const entry = safe(+entryInput.value);
+  const rr = Math.max(0.1, safe(+rrInput.value));
+  const lev = Math.max(1, safe(+leverageInput.value));
+  const winrate = safe(+winrateInput.value)/100;
+  const dir = direction.value;
+
+  if(account<=0 || entry<=0) return;
+
+  const riskAmount = account * riskPct;
+  const stopDistance = riskAmount / account;
+  const stopPrice = dir==="long"
+    ? entry * (1 - stopDistance)
+    : entry * (1 + stopDistance);
+
+  const takeProfit = dir==="long"
+    ? entry + (entry - stopPrice)*rr
+    : entry - (stopPrice - entry)*rr;
+
+  const drawdownPrice = dir==="long"
+    ? entry * (1 - maxDD)
+    : entry * (1 + maxDD);
+
+  const positionFixed = riskAmount / Math.abs(entry - stopPrice);
+  const pos3pct = (account*0.03) / Math.abs(entry - stopPrice);
+
+  const kelly = winrate - ((1-winrate)/rr);
+  const halfKelly = Math.max(0, kelly/2) * account / Math.abs(entry-stopPrice);
+
+  const marginLimited = (account*lev)/entry;
+
+  results.innerHTML = `
+    <tr><td>Stop Loss</td><td class="red">${stopPrice.toFixed(4)}</td></tr>
+    <tr><td>Take Profit</td><td class="green">${takeProfit.toFixed(4)}</td></tr>
+    <tr><td>Fixed % Position</td><td>${positionFixed.toFixed(2)}</td></tr>
+    <tr><td>3% Rule Position</td><td>${pos3pct.toFixed(2)}</td></tr>
+    <tr><td>Kelly Position</td><td>${(kelly>0?positionFixed*kelly:0).toFixed(2)}</td></tr>
+    <tr><td>Half Kelly</td><td>${halfKelly.toFixed(2)}</td></tr>
+    <tr><td>Margin Cap Position</td><td>${marginLimited.toFixed(2)}</td></tr>
+  `;
+
+  ddWarning.textContent = (
+    (dir==="long" && stopPrice < drawdownPrice) ||
+    (dir==="short" && stopPrice > drawdownPrice)
+  )
+  ? "⚠ Stop loss exceeds maximum drawdown limit"
+  : "";
+
+  drawChart(entry, stopPrice, takeProfit, drawdownPrice);
+  buildMatrix(account, entry);
+}
+
+function drawChart(entry, sl, tp, dd){
+  const ctx = document.getElementById("tradeChart");
+  if(chart) chart.destroy();
+
+  chart = new Chart(ctx,{
+    type:"line",
+    data:{
+      labels:["Stop","Drawdown","Entry","Target"],
+      datasets:[{
+        data:[sl,dd,entry,tp],
+        borderColor:"#38bdf8",
+        fill:false,
+        tension:0
+      }]
+    },
+    options:{
+      plugins:{ legend:{display:false} },
+      scales:{
+        y:{ ticks:{ color:"#94a3b8" } },
+        x:{ ticks:{ color:"#94a3b8" } }
+      }
+    }
+  });
+}
+
+function buildMatrix(account, entry){
+  let html="<tr><th>R:R \\ Lev</th>";
+  leverages.forEach(l=>html+=`<th>${l}x</th>`);
+  html+="</tr>";
+
+  rrs.forEach(r=>{
+    html+=`<tr><th>1:${r}</th>`;
+    leverages.forEach(l=>{
+      const risk=account*0.01;
+      const profit=risk*r*l;
+      const cls=profit>account*0.1?"red":profit>account*0.03?"yellow":"green";
+      html+=`<td class="${cls}">${profit.toFixed(0)}</td>`;
+    });
+    html+="</tr>";
+  });
+
+  matrix.innerHTML=html;
+}
+
+const accountInput = document.getElementById("account");
+const riskPctInput = document.getElementById("riskPct");
+const maxDDInput = document.getElementById("maxDD");
+const entryInput = document.getElementById("entry");
+const rrInput = document.getElementById("rr");
+const leverageInput = document.getElementById("leverage");
+const winrateInput = document.getElementById("winrate");
+const direction = document.getElementById("direction");
+const results = document.getElementById("results");
+const matrix = document.getElementById("matrix");
+const ddWarning = document.getElementById("ddWarning");
+</script>
+
+</body>
+</html>

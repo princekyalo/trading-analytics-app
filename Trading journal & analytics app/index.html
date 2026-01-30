@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Market Dashboard</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --bg:#0b0f1a;
+  --card:#121826;
+  --glass:rgba(255,255,255,0.05);
+  --border:rgba(255,255,255,0.08);
+  --green:#16c784;
+  --red:#ea3943;
+  --blue:#4f46e5;
+  --text:#e5e7eb;
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:Inter,sans-serif;
+  background:radial-gradient(circle at top,#141a2a,#05070f);
+  color:var(--text);
+}
+
+/* NAVBAR */
+header{
+  position:sticky;
+  top:0;
+  z-index:10;
+  backdrop-filter:blur(12px);
+  background:rgba(5,7,15,0.8);
+  border-bottom:1px solid var(--border);
+}
+.nav{
+  max-width:1300px;
+  margin:auto;
+  padding:1rem 1.5rem;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+}
+.logo{
+  font-size:1.4rem;
+  font-weight:700;
+  color:var(--blue);
+}
+nav{
+  display:flex;
+  gap:1rem;
+}
+nav a{
+  text-decoration:none;
+  color:#fff;
+  padding:.5rem 1rem;
+  border-radius:8px;
+  transition:.3s;
+}
+nav a:hover{
+  background:var(--glass);
+}
+
+/* SEARCH BAR */
+.search-wrap{
+  max-width:1300px;
+  margin:auto;
+  padding:0 1.5rem 1rem;
+  position:relative;
+}
+.search-wrap input{
+  width:100%;
+  padding:.9rem 1rem;
+  border-radius:12px;
+  border:1px solid var(--border);
+  background:var(--glass);
+  color:#fff;
+  font-size:1rem;
+}
+.search-results{
+  position:absolute;
+  top:100%;
+  left:1.5rem;
+  right:1.5rem;
+  background:#020617;
+  border:1px solid var(--border);
+  border-radius:12px;
+  overflow:hidden;
+  display:none;
+  z-index:20;
+}
+.search-results div{
+  padding:.8rem 1rem;
+  cursor:pointer;
+  border-bottom:1px solid var(--border);
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+.search-results div:hover{
+  background:var(--glass);
+}
+.search-results small{
+  color:rgba(229,231,235,0.75);
+  font-size:.9rem;
+  margin-left:8px;
+  opacity:.9;
+}
+
+/* HERO */
+.hero{
+  max-width:1200px;
+  margin:3rem auto;
+  padding:3rem;
+  border-radius:20px;
+  background:linear-gradient(135deg,#1b1f36,#0c1020);
+  box-shadow:0 20px 40px rgba(0,0,0,.6);
+  text-align:center;
+}
+.hero h1{
+  font-size:clamp(2rem,4vw,3rem);
+}
+.hero p{
+  opacity:.8;
+  font-size:1.2rem;
+}
+
+/* TERMINAL GRID */
+.terminal{
+  max-width:1300px;
+  margin:2rem auto;
+  display:grid;
+  grid-template-columns:2fr 1fr;
+  gap:1.5rem;
+  padding:0 1.5rem;
+}
+.card{
+  background:var(--glass);
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:1.2rem;
+  backdrop-filter:blur(10px);
+}
+
+/* CHART */
+canvas{
+  width:100%;
+  height:300px;
+}
+
+/* ORDER BOOK */
+.orderbook{
+  font-family:monospace;
+}
+.order{
+  display:flex;
+  justify-content:space-between;
+  padding:.4rem 0;
+}
+.buy{color:var(--green)}
+.sell{color:var(--red)}
+
+/* CTA TERMINAL */
+.cta{
+  max-width:900px;
+  margin:3rem auto;
+  background:#020617;
+  border:1px solid var(--border);
+  border-radius:16px;
+  padding:2rem;
+  font-family:monospace;
+}
+.cursor{
+  display:inline-block;
+  width:10px;
+  height:18px;
+  background:#fff;
+  animation:blink 1s infinite;
+}
+@keyframes blink{50%{opacity:0}}
+
+.actions{
+  margin-top:1.5rem;
+  display:flex;
+  gap:1rem;
+  flex-wrap:wrap;
+}
+.actions a{
+  flex:1;
+  text-align:center;
+  padding:.9rem;
+  border-radius:10px;
+  font-weight:600;
+  text-decoration:none;
+}
+.start{background:var(--blue);color:#fff}
+.continue{background:var(--glass);color:#fff;border:1px solid var(--border)}
+
+@media(max-width:900px){
+  .terminal{grid-template-columns:1fr}
+}
+</style>
+</head>
+
+<body>
+
+<header>
+  <div class="nav">
+    <div class="logo">Market Dashboard</div>
+    <nav>
+      <a href="crypto.html">Crypto</a>
+      <a href="stocks.html">Stocks</a>
+      <a href="help.html">Help</a>
+    </nav>
+  </div>
+
+  <!-- SEARCH BAR -->
+  <div class="search-wrap">
+    <input type="text" id="search" placeholder="Search tools, markets, calculators...">
+    <div class="search-results" id="results"></div>
+  </div>
+</header>
+
+<section class="hero">
+  <h1>Stay in Touch With the Market</h1>
+  <p>Institutional-grade tradinq insights terminal</p>
+</section>
+
+<section class="terminal">
+  <div class="card">
+    <h3>Eyes on the market</h3>
+    <canvas id="chart"></canvas>
+  </div>
+
+  <div class="card orderbook">
+    <h3>Real time data</h3>
+    <div id="orders"></div>
+  </div>
+</section>
+
+<!-- <section class="cta">
+  <div id="terminalText"></div><span class="cursor"></span>
+  <div class="actions">
+    <a href="signup.html" class="start">Get Started</a>
+    <a href="login.html" class="continue">Continue Trading</a>
+  </div>
+</section> -->
+
+<script>
+/* SEARCH DATA: integrated JSON index */
+const searchIndex = {
+  
+  "expectancy.html": {
+    "category": "Expectancy Simulation",
+    "terms": {
+      "core": [
+        "Expectancy calculator",
+        "Trading expectancy formula",
+        "Expectancy in trading",
+        "System expectancy analysis",
+        "Trading system profitability"
+      ],
+      "extended": [
+        "Win rate vs risk reward",
+        "Average win average loss",
+        "Trading edge calculation",
+        "Probability-weighted returns",
+        "Monte Carlo trading simulation",
+        "Trading system backtesting",
+        "Expected value trading"
+      ]
+    }
+  },
+
+  "financial_ratios.html": {
+    "category": "Financial Ratios",
+    "sections": {
+      "valuation_ratios": {
+        "label": "Valuation Ratios (Stock Attractiveness)",
+        "terms": [
+          "Market price per share",
+          "Earnings per share (EPS)",
+          "Forecast EPS",
+          "Book value per share",
+          "Market capitalization",
+          "Enterprise value (EV)",
+          "EBITDA",
+          "Earnings growth rate",
+          "Annual dividend per share",
+          "Share price",
+          "Price to earnings ratio (P/E)",
+          "Price to book ratio (P/B)",
+          "EV/EBITDA",
+          "Dividend yield",
+          "Intrinsic stock value"
+        ]
+      },
+      "profitability_ratios": {
+        "label": "Profitability Ratios",
+        "terms": [
+          "Revenue",
+          "Cost of goods sold (COGS)",
+          "Operating income",
+          "Net income",
+          "Shareholders’ equity",
+          "Total assets",
+          "NOPAT",
+          "Invested capital",
+          "EBIT",
+          "Capital employed",
+          "Gross margin",
+          "Operating margin",
+          "Net profit margin",
+          "Return on equity (ROE)",
+          "Return on assets (ROA)",
+          "Return on invested capital (ROIC)"
+        ]
+      },
+      "liquidity_ratios": {
+        "label": "Liquidity Ratios (Short-Term Risk)",
+        "terms": [
+          "Current assets",
+          "Current liabilities",
+          "Inventory",
+          "Cash and cash equivalents",
+          "Operating cash flow",
+          "Current ratio",
+          "Quick ratio",
+          "Cash ratio",
+          "Working capital"
+        ]
+      },
+      "leverage_solvency_ratios": {
+        "label": "Leverage & Solvency Ratios (Financial Risk)",
+        "terms": [
+          "Total debt",
+          "Shareholders’ equity",
+          "Total assets",
+          "Interest expense",
+          "Operating income",
+          "Total debt service",
+          "Cash",
+          "Debt to equity ratio",
+          "Debt to assets ratio",
+          "Interest coverage ratio",
+          "Financial leverage"
+        ]
+      },
+      "efficiency_activity_ratios": {
+        "label": "Efficiency / Activity Ratios",
+        "terms": [
+          "Revenue",
+          "Total assets",
+          "Average inventory",
+          "Average accounts receivable",
+          "Inventory",
+          "Days payables outstanding",
+          "Asset turnover ratio",
+          "Inventory turnover",
+          "Receivables turnover",
+          "Cash conversion cycle"
+        ]
+      },
+      "market_performance_risk": {
+        "label": "Market Performance & Risk Ratios",
+        "terms": [
+          "Covariance (stock, market)",
+          "Variance (market)",
+          "Actual return",
+          "Expected return (CAPM)",
+          "Risk-free rate",
+          "Standard deviation",
+          "Downside deviation",
+          "Beta (β)",
+          "Peak value",
+          "Trough value",
+          "CAPM calculator",
+          "Alpha and beta",
+          "Sharpe ratio",
+          "Sortino ratio",
+          "Maximum drawdown"
+        ]
+      },
+      "cashflow_dividends": {
+        "label": "Cash Flow & Dividend Sustainability",
+        "terms": [
+          "Operating cash flow",
+          "Capital expenditures",
+          "Market capitalization",
+          "Dividends",
+          "Net income",
+          "Total debt",
+          "Free cash flow (FCF)",
+          "Dividend payout ratio",
+          "Dividend coverage ratio",
+          "Cash flow sustainability"
+        ]
+      },
+      "intrinsic_value": {
+        "label": "Intrinsic Value Metrics",
+        "terms": [
+          "Discounted cash flow (DCF)",
+          "CFₜ (cash flow at time t)",
+          "Discount rate (r)",
+          "WACC",
+          "Cost of equity (Re)",
+          "Cost of debt (Rd)",
+          "Tax rate",
+          "Invested capital",
+          "Total firm value (V)",
+          "Intrinsic value calculator",
+          "Equity valuation model",
+          "DCF valuation explained"
+        ]
+      }
+    }
+  },
+
+  "cryptocurrencies.html": {
+    "category": "Cryptocurrencies",
+    "sections": {
+      "core_coins": [
+        "Bitcoin (BTC)",
+        "Ethereum (ETH)",
+        "Binance Coin (BNB)",
+        "Solana (SOL)",
+        "Ripple (XRP)",
+        "Cardano (ADA)",
+        "Polkadot (DOT)",
+        "Avalanche (AVAX)",
+        "Litecoin (LTC)",
+        "Chainlink (LINK)"
+      ],
+      "technology_concepts": [
+        "Blockchain technology",
+        "Smart contracts",
+        "Decentralized finance (DeFi)",
+        "Proof of Work (PoW)",
+        "Proof of Stake (PoS)",
+        "Layer 2 scaling",
+        "Gas fees",
+        "Tokenomics"
+      ],
+      "trading_investment": [
+        "Crypto trading strategies",
+        "Crypto market capitalization",
+        "Crypto volatility",
+        "Bitcoin halving",
+        "Stablecoins (USDT, USDC)",
+        "Crypto wallets (hot vs cold)",
+        "Centralized vs decentralized exchanges",
+        "NFT marketplace",
+        "Web3 applications",
+        "Crypto regulation"
+      ]
+    }
+  },
+
+  "entry_calculator.html": {
+    "category": "Trade Entry Calculations",
+    "terms": [
+      "Trade entry calculator",
+      "Entry price strategy",
+      "Stop loss calculation",
+      "Take profit calculation",
+      "Risk to reward ratio",
+      "Breakout trading entry",
+      "Support and resistance entry",
+      "Trade execution strategy",
+      "Risk management in trading"
+    ]
+  },
+
+  "position_size.html": {
+    "category": "Position Size Calculations",
+    "terms": [
+      "Position size calculator",
+      "Kelly Criterion",
+      "3% risk rule",
+      "Risk per trade calculation",
+      "Fixed fractional position sizing",
+      "Optimal position sizing",
+      "Capital allocation strategy",
+      "Portfolio risk management",
+      "Account balance risk percentage"
+    ]
+  },
+
+  "bonds.html": {
+    "category": "Bonds Calculations",
+    "terms": [
+      "Bond pricing calculator",
+      "Yield to maturity (YTM)",
+      "Current yield",
+      "Coupon rate",
+      "Bond duration",
+      "Modified duration",
+      "Convexity",
+      "Interest rate risk",
+      "Bond valuation"
+    ]
+  },
+
+  "market_dashboard.html": {
+    "category": "Market Dashboard",
+    "sections": {
+      "market_overview": [
+        "Market dashboard",
+        "Financial market overview",
+        "Global market summary",
+        "Live market data",
+        "Market heatmap"
+      ],
+      "equity_markets": [
+        "Stock market indices",
+        "S&P 500",
+        "Nasdaq Composite",
+        "Dow Jones Industrial Average",
+        "Emerging markets stocks"
+      ],
+      "crypto_markets": [
+        "Crypto market dashboard",
+        "Bitcoin price live",
+        "Ethereum price live",
+        "Crypto market dominance",
+        "Total crypto market cap"
+      ],
+      "fixed_income_rates": [
+        "Bond yields dashboard",
+        "Yield curve",
+        "Treasury rates",
+        "Interest rate trends"
+      ],
+      "volatility_risk": [
+        "Market volatility index (VIX)",
+        "Risk-on risk-off indicators",
+        "Market breadth indicators",
+        "Sector rotation"
+      ]
+    }
+  }
+};
+
+/* Build a flat lookup of term -> url (preserve duplicates by url+term) */
+function buildPagesFromIndex(index) {
+  const pages = [];
+  for (const [url, info] of Object.entries(index)) {
+    const pageName = (url.replace('.html','').replace(/[_\-]/g,' ')).replace(/\b\w/g,c=>c.toUpperCase());
+    const terms = [];
+
+    // Handle top-level 'terms' object with core/extended or an array
+    if (info.terms) {
+      if (Array.isArray(info.terms)) {
+        terms.push(...info.terms);
+      } else {
+        if (Array.isArray(info.terms.core)) terms.push(...info.terms.core);
+        if (Array.isArray(info.terms.extended)) terms.push(...info.terms.extended);
+      }
+    }
+
+    // Handle nested 'sections' where each section may have 'terms' array or be an array itself
+    if (info.sections) {
+      for (const section of Object.values(info.sections)) {
+        if (Array.isArray(section)) {
+          terms.push(...section);
+        } else if (Array.isArray(section.terms)) {
+          terms.push(...section.terms);
+        }
+      }
+    }
+
+    // Remove empty/undefined and ensure strings
+    const cleanTerms = terms.filter(Boolean).map(t => String(t));
+    pages.push({ url, pageName, terms: cleanTerms });
+  }
+  return pages;
+}
+
+const pagesFromIndex = buildPagesFromIndex(searchIndex);
+
+/* SEARCH FUNCTIONALITY */
+const search = document.getElementById("search");
+const results = document.getElementById("results");
+
+search.addEventListener("input", ()=>{
+  const q = search.value.trim().toLowerCase();
+  results.innerHTML = "";
+  if (!q) { results.style.display = "none"; return; }
+
+  const matches = [];
+  const seen = new Set();
+
+  for (const page of pagesFromIndex) {
+    // match page name
+    if (page.pageName.toLowerCase().includes(q)) {
+      const key = `${page.url}::${page.pageName}`;
+      if (!seen.has(key)) {
+        matches.push({term: page.pageName, url: page.url, page: page.pageName});
+        seen.add(key);
+      }
+    }
+    // match page terms
+    for (const term of page.terms) {
+      if (term.toLowerCase().includes(q)) {
+        const key = `${page.url}::${term}`;
+        if (!seen.has(key)) {
+          matches.push({term, url: page.url, page: page.pageName});
+          seen.add(key);
+        }
+      }
+      if (matches.length >= 12) break;
+    }
+    if (matches.length >= 12) break;
+  }
+
+  // render results
+  for (const m of matches) {
+    const div = document.createElement("div");
+    div.dataset.url = m.url;
+    div.innerHTML = `<span>${m.term}</span><small>— ${m.page}</small>`;
+    results.appendChild(div);
+  }
+
+  results.style.display = matches.length ? "block" : "none";
+});
+
+// click delegation for result items
+results.addEventListener("click", (e)=>{
+  const item = e.target.closest("div");
+  if (!item) return;
+  const url = item.dataset.url;
+  if (url) window.location.href = url;
+});
+
+// click outside to close
+document.addEventListener("click", e=>{
+  if (!e.target.closest(".search-wrap")) results.style.display="none";
+});
+
+/* CHART */
+const canvas=document.getElementById("chart");
+const ctx=canvas.getContext("2d");
+let data=Array.from({length:60},()=>Math.random()*50+50);
+
+function draw(){
+  canvas.width=canvas.offsetWidth;
+  canvas.height=300;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle="#16c784";
+  ctx.beginPath();
+  data.forEach((v,i)=>{
+    const x=i*(canvas.width/(data.length-1));
+    const y=canvas.height-(v*2);
+    i?ctx.lineTo(x,y):ctx.moveTo(x,y);
+  });
+  ctx.stroke();
+}
+setInterval(()=>{
+  data.shift();
+  data.push(Math.random()*50+50);
+  draw();
+},800);
+draw();
+
+/* ORDER BOOK */
+const orders=document.getElementById("orders");
+function updateOrders(){
+  orders.innerHTML="";
+  for(let i=0;i<10;i++){
+    const buy=Math.random()>0.5;
+    const price=(Math.random()*100+100).toFixed(2);
+    const size=(Math.random()*5).toFixed(3);
+    orders.innerHTML+=`
+      <div class="order ${buy?'buy':'sell'}">
+        <span>${buy?'BUY':'SELL'}</span>
+        <span>${price}</span>
+        <span>${size}</span>
+      </div>`;
+  }
+}
+setInterval(updateOrders,1000);
+updateOrders();
+
+/* TERMINAL TEXT */
+const text=">> Welcome trader. Would you like to get started or continue trading?";
+let i=0;
+const target=document.getElementById("terminalText");
+setInterval(()=>{
+  if(i<text.length) target.textContent+=text[i++];
+},40);
+</script>
+
+</body>
+</html>

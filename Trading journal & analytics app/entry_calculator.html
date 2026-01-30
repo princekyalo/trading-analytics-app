@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Trade Entry Parameters Calculator</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    background: #f4f6f9;
+    margin: 0;
+    padding: 20px;
+  }
+
+  .container {
+    max-width: 1300px;
+    margin: auto;
+    background: #fff;
+    padding: 20px;
+    border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.08);
+  }
+
+  h1 {
+    text-align: center;
+    margin-bottom: 20px;
+  }
+
+  .section {
+    margin-top: 25px;
+  }
+
+  .form-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+  }
+
+  label {
+    font-weight: bold;
+    display: block;
+    margin-bottom: 5px;
+  }
+
+  input, select, button {
+    width: 100%;
+    padding: 10px;
+    font-size: 14px;
+    border-radius: 4px;
+    border: 1px solid #ccc;
+  }
+
+  button {
+    background: #1f6feb;
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    margin-top: 22px;
+  }
+
+  button:hover {
+    background: #174ea6;
+  }
+
+  .error {
+    color: red;
+    font-weight: bold;
+    margin-bottom: 10px;
+  }
+
+  .results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 15px;
+    margin-top: 20px;
+  }
+
+  .box {
+    padding: 15px;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: bold;
+  }
+
+  .entry { background: #e3f2fd; }
+  .stop { background: #fdecea; color: #b71c1c; }
+  .tp { background: #e8f5e9; color: #1b5e20; }
+  .risk { background: #fff3e0; color: #e65100; }
+  .reward { background: #e8f5e9; color: #1b5e20; }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+  }
+
+  th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: center;
+  }
+
+  th {
+    background: #f0f0f0;
+  }
+
+  .chart-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+    gap: 20px;
+    margin-top: 25px;
+  }
+
+  .explanation {
+    margin-top: 25px;
+    padding: 15px;
+    background: #f9fafb;
+    border-left: 4px solid #1f6feb;
+    line-height: 1.6;
+  }
+
+  .blue { color: #1f6feb; font-weight: bold; }
+  .red { color: #c62828; font-weight: bold; }
+  .green { color: #2e7d32; font-weight: bold; }
+  .orange { color: #ef6c00; font-weight: bold; }
+</style>
+</head>
+
+<body>
+<div class="container">
+  <h1>Trade Entry Parameters Calculator</h1>
+
+  <div class="error" id="error"></div>
+
+  <!-- INPUT SECTION -->
+  <div class="section">
+    <div class="form-grid">
+      <div>
+        <label>Entry Price</label>
+        <input type="number" id="entry" step="0.0001">
+      </div>
+      <div>
+        <label>Account Balance</label>
+        <input type="number" id="balance">
+      </div>
+      <div>
+        <label>Risk per Trade (%)</label>
+        <input type="number" id="riskPercent" step="0.1">
+      </div>
+      <div>
+        <label>Risk to Reward Ratio</label>
+        <input type="number" id="rr" step="0.1">
+      </div>
+      <div>
+        <label>Leverage</label>
+        <input type="number" id="leverage" step="1">
+      </div>
+      <div>
+        <label>Asset Class</label>
+        <select id="asset">
+          <option>Forex</option>
+          <option>Stocks</option>
+          <option>Indices</option>
+          <option>Crypto</option>
+          <option>Commodities</option>
+        </select>
+      </div>
+      <div>
+        <label>Trade Direction</label>
+        <select id="direction">
+          <option value="buy">Buy</option>
+          <option value="sell">Sell</option>
+        </select>
+      </div>
+      <div>
+        <button onclick="calculate()">Calculate Trade</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="section">
+    <div class="results-grid">
+      <div class="box entry">Entry<br><span id="rEntry">-</span></div>
+      <div class="box stop">Stop Loss<br><span id="rStop">-</span></div>
+      <div class="box tp">Take Profit<br><span id="rTP">-</span></div>
+      <div class="box risk">Risk ($)<br><span id="rRisk">-</span></div>
+      <div class="box reward">Reward ($)<br><span id="rReward">-</span></div>
+    </div>
+  </div>
+
+  <!-- TABLE -->
+  <table>
+    <thead>
+      <tr>
+        <th>Metric</th>
+        <th>Value</th>
+      </tr>
+    </thead>
+    <tbody id="resultTable"></tbody>
+  </table>
+
+  <!-- CHARTS -->
+  <div class="chart-grid">
+    <canvas id="priceChart"></canvas>
+    <canvas id="riskPie"></canvas>
+    <canvas id="leverageChart"></canvas>
+  </div>
+
+  <!-- EXPLANATION -->
+  <div class="explanation" id="explanation"></div>
+</div>
+
+<script>
+let priceChart, pieChart, leverageChart;
+
+function calculate() {
+  const entry = parseFloat(entryInput.value);
+  const balance = parseFloat(balanceInput.value);
+  const riskP = parseFloat(riskPercent.value) / 100;
+  const rr = parseFloat(rrInput.value);
+  const lev = parseFloat(leverage.value);
+  const dir = direction.value;
+  const error = document.getElementById("error");
+
+  error.textContent = "";
+
+  if ([entry, balance, riskP, rr, lev].some(v => isNaN(v) || v <= 0)) {
+    error.textContent = "Please enter valid positive values.";
+    return;
+  }
+
+  const riskAmount = balance * riskP;
+  const stopDistance = entry * 0.01;
+  const stop = dir === "buy" ? entry - stopDistance : entry + stopDistance;
+  const tp = dir === "buy" ? entry + stopDistance * rr : entry - stopDistance * rr;
+  const reward = riskAmount * rr;
+
+  rEntry.textContent = entry.toFixed(4);
+  rStop.textContent = stop.toFixed(4);
+  rTP.textContent = tp.toFixed(4);
+  rRisk.textContent = riskAmount.toFixed(2);
+  rReward.textContent = reward.toFixed(2);
+
+  resultTable.innerHTML = `
+    <tr><td>Asset Class</td><td>${asset.value}</td></tr>
+    <tr><td>Direction</td><td>${dir.toUpperCase()}</td></tr>
+    <tr><td>Leverage</td><td>${lev}x</td></tr>
+    <tr><td>Risk (%)</td><td>${(riskP*100).toFixed(2)}%</td></tr>
+    <tr><td>Risk to Reward</td><td>${rr}</td></tr>
+  `;
+
+  renderCharts(entry, stop, tp, riskAmount, reward, lev);
+  generateExplanation(entry, stop, tp, riskAmount, reward, rr, lev);
+}
+
+function renderCharts(entry, stop, tp, risk, reward, lev) {
+  const prices = [];
+  let base = entry;
+  for (let i = 0; i < 20; i++) {
+    base += (Math.random() - 0.5) * (entry * 0.002);
+    prices.push(base);
+  }
+
+  if (priceChart) priceChart.destroy();
+  priceChart = new Chart(priceChartCtx, {
+    type: "line",
+    data: {
+      labels: prices.map((_, i) => i + 1),
+      datasets: [
+        { label: "Price Path", data: prices, tension: 0.3 },
+        { label: "Entry", data: Array(20).fill(entry) },
+        { label: "Stop Loss", data: Array(20).fill(stop) },
+        { label: "Take Profit", data: Array(20).fill(tp) }
+      ]
+    }
+  });
+
+  if (pieChart) pieChart.destroy();
+  pieChart = new Chart(riskPieCtx, {
+    type: "pie",
+    data: {
+      labels: ["Risk", "Reward"],
+      datasets: [{ data: [risk, reward] }]
+    }
+  });
+
+  if (leverageChart) leverageChart.destroy();
+  leverageChart = new Chart(leverageChartCtx, {
+    type: "bar",
+    data: {
+      labels: ["Exposure"],
+      datasets: [{ label: "Leverage Impact", data: [lev] }]
+    }
+  });
+}
+
+function generateExplanation(entry, stop, tp, risk, reward, rr, lev) {
+  explanation.innerHTML = `
+    This trade is entered at <span class="blue">${entry.toFixed(4)}</span>.
+    Your maximum loss is capped at <span class="red">$${risk.toFixed(2)}</span> using a stop loss at
+    <span class="red">${stop.toFixed(4)}</span>.
+    The take profit is set at <span class="green">${tp.toFixed(4)}</span>, offering a
+    <span class="green">${rr}:1</span> reward-to-risk ratio.
+    Using <span class="orange">${lev}x leverage</span> amplifies exposure, increasing both opportunity and risk.
+    This setup is considered ${rr >= 2 ? "<span class='green'>favorable</span>" : "<span class='red'>aggressive</span>"} based on risk-reward balance.
+  `;
+}
+
+const entryInput = document.getElementById("entry");
+const balanceInput = document.getElementById("balance");
+const riskPercent = document.getElementById("riskPercent");
+const rrInput = document.getElementById("rr");
+const leverage = document.getElementById("leverage");
+const asset = document.getElementById("asset");
+const direction = document.getElementById("direction");
+
+const priceChartCtx = document.getElementById("priceChart").getContext("2d");
+const riskPieCtx = document.getElementById("riskPie").getContext("2d");
+const leverageChartCtx = document.getElementById("leverageChart").getContext("2d");
+</script>
+</body>
+</html>
